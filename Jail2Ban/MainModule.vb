@@ -5,68 +5,115 @@ Imports System
 Imports System.Diagnostics
 Imports System.Threading
 Imports System.Diagnostics.Eventing.Reader
+Imports Newtonsoft.Json
 
 Module MainModule
 
-    Dim WhiteList As New List(Of String)
-    Dim FirewallRuleName = "Jail2Ban block" ' What we name our Rules
-    Dim CheckMinutes = 120  ' We check the most recent X minutes of log.       Default: 120
-    Dim CheckCount = 5      ' Ban after this many failures in search period.   Default: 5
+    Dim Cfg As New ConfigurationModel
+    Dim ConfigurationFileName = "Config.json"
 
-    Dim SleepTime = 10000
-    Dim JailFileName = "Jail.json"
+    Dim StartTime As DateTime
 
     Sub Main()
 
-        'Populate the WhiteList with machine address
-        For Each sl In (From x In Dns.GetHostEntry(Dns.GetHostName).AddressList)
-            WhiteList.Add(sl.ToString)
+        Console.WriteLine($"Jail2Ban loading...")
+        StartTime = Now
+
+        For Each argument In My.Application.CommandLineArgs
+            If argument.ToLower.StartsWith("-configuration:") Then
+                ConfigurationFileName = argument.Substring("-configuration:".Length)
+            End If
         Next
 
+        If IO.File.Exists(ConfigurationFileName) Then
+            'Load configuration
+            Try
+                Cfg = JsonConvert.DeserializeObject(Of ConfigurationModel)(IO.File.ReadAllText(ConfigurationFileName))
+            Catch ex As Exception
+                Console.ForegroundColor = ConsoleColor.Red
+                Console.WriteLine($"Loading configuration file {ConfigurationFileName} failed.")
+                Console.WriteLine(ex.Message)
+                Console.ResetColor()
+            End Try
+        Else
+            'Save the first configuration file
+            IO.File.WriteAllText(ConfigurationFileName, JsonConvert.SerializeObject(Cfg))
+        End If
+
+        'Populate the WhiteList with machine address
+        Console.ForegroundColor = ConsoleColor.White
+        Console.WriteLine("Populating Whitelist with this machine addresses:")
+        Console.ResetColor()
+        For Each sl In (From x In Dns.GetHostEntry(Dns.GetHostName).AddressList)
+            Cfg.WhiteList.Add(sl.ToString)
+            Console.WriteLine($" - {sl.ToString}")
+        Next
+        Console.WriteLine("")
+
         'Load History
+        Console.WriteLine("Loading history file...")
         Dim JailTable As New JailDataSet.JailDataTable
-        If IO.File.Exists(JailFileName) Then
-            JailTable = Newtonsoft.Json.JsonConvert.DeserializeObject(Of JailDataSet.JailDataTable)(IO.File.ReadAllText(JailFileName))
+        If IO.File.Exists(Cfg.JailFileName) Then
+            JailTable = JsonConvert.DeserializeObject(Of JailDataSet.JailDataTable)(IO.File.ReadAllText(Cfg.JailFileName))
         End If
 
         'Lock IPs basing on the history file (in case you need to recreate the block rule loading another computer history)
-        For Each row In JailTable.Where(Function(x) x.Banned Or (x.Count >= CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < CheckMinutes))
+        For Each row In JailTable.Where(Function(x) x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes))
             row.Banned = MainModule.Jail(row.IP)
         Next
+        Console.WriteLine("")
+
+        Console.WriteLine("Application starts in 5 seconds.")
+        Threading.Thread.Sleep(5000)
+
+        Dim EventsToCheck = New JailDataSet.EventToCheckDataTable
+        EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0)
+        EventsToCheck.AddEventToCheckRow("Security", 4625, 19)
 
         'Starts the infinite loop
         While True
 
-            Dim LogName = "Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational"
-            Dim query = New EventLogQuery(LogName, PathType.LogName) ', "*[System/Level=2]")
+            For Each etcRow In EventsToCheck
+                Console.WriteLine("Reading " & etcRow.Log & "...")
+                Dim query As EventLogQuery
+                Try
+                    query = New EventLogQuery(etcRow.Log, PathType.LogName) ', "*[System/Level=2]")
+                Catch ex As Exception
+                    Console.ForegroundColor = ConsoleColor.Red
+                    Console.WriteLine(etcRow.Log & ": " & ex.Message)
+                    Console.ResetColor()
+                    GoTo NextEventType
+                End Try
 
-            Using reader = New EventLogReader(query)
-                Dim e = reader.ReadEvent()
-                While Not e Is Nothing
-                    If e.Id = 140 Then
-                        Dim ip = e.Properties(0).Value
-                        Dim row = JailTable.FindByIP(ip)
-                        If row Is Nothing Then
-                            row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
-                        End If
-                        If row.Last < e.TimeCreated Then
-                            row.Count += 1
-                            row.Last = e.TimeCreated
-                            If row.Count >= CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < CheckMinutes Then
-                                row.Banned = MainModule.Jail(ip)
+                Using reader = New EventLogReader(query)
+                    Dim e = reader.ReadEvent()
+                    While Not e Is Nothing
+                        If e.Id = etcRow.EventID Then
+                            Dim ip = e.Properties(etcRow.PropertyIndex).Value
+                            Dim row = JailTable.FindByIP(ip)
+                            If row Is Nothing Then
+                                row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                            End If
+                            If row.Last < e.TimeCreated Then
+                                row.Count += 1
+                                row.Last = e.TimeCreated
+                                If row.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < Cfg.CheckMinutes Then
+                                    row.Banned = MainModule.Jail(ip)
+                                End If
                             End If
                         End If
-                    End If
-                    e = reader.ReadEvent()
-                End While
-            End Using
+                        e = reader.ReadEvent()
+                    End While
+                End Using
+NextEventType:
+            Next
+
             DrawTable(JailTable)
-            Console.WriteLine("Time " & Now.ToShortTimeString)
 
-            Dim j = Newtonsoft.Json.JsonConvert.SerializeObject(JailTable)
-            My.Computer.FileSystem.WriteAllText(JailFileName, j, False)
+            Dim j = JsonConvert.SerializeObject(JailTable)
+            My.Computer.FileSystem.WriteAllText(Cfg.JailFileName, j, False)
 
-            Threading.Thread.Sleep(SleepTime)
+            Threading.Thread.Sleep(Cfg.SleepTime)
         End While
 
     End Sub
@@ -103,11 +150,11 @@ Module MainModule
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
                         Case "IP"
-                            If WhiteList.Contains(r.IP) Then Console.ForegroundColor = ConsoleColor.White
+                            If Cfg.WhiteList.Contains(r.IP) Then Console.ForegroundColor = ConsoleColor.White
                         Case "Count"
-                            If r.Count >= CheckCount And Not r.Banned Then Console.ForegroundColor = ConsoleColor.Red
+                            If r.Count >= Cfg.CheckCount And Not r.Banned Then Console.ForegroundColor = ConsoleColor.Red
                         Case "First", "Last"
-                            If DateDiff(DateInterval.Second, r.Item(c.ColumnName), Now) <= SleepTime / 1000 Then Console.ForegroundColor = ConsoleColor.Yellow
+                            If DateDiff(DateInterval.Second, r.Item(c.ColumnName), Now) <= Cfg.SleepTime / 1000 Then Console.ForegroundColor = ConsoleColor.Yellow
                         Case "Banned"
                             If r.Banned Then Console.ForegroundColor = ConsoleColor.Green
                     End Select
@@ -131,6 +178,10 @@ Module MainModule
                         Data = "Tot: " & JailTable.Count
                     Case "Count"
                         Data = JailTable.Select(Function(x) x.Count).Sum
+                    Case "First"
+                        Data = $"Worktime: {DateDiff(DateInterval.Hour, StartTime, Now)} h"
+                    Case "Last"
+                        Data = Now.ToString("HH:mm:ss")
                     Case "Banned"
                         Data = JailTable.Where(Function(x) x.Banned).Count
                 End Select
@@ -153,7 +204,7 @@ Module MainModule
 
     Function GetRule() As INetFwRule2
         Dim Rules = From x As INetFwRule2 In fwPolicy.Rules
-                    Where x.Name = FirewallRuleName
+                    Where x.Name = Cfg.FirewallRuleName
 
         Return Rules.FirstOrDefault
     End Function
@@ -161,7 +212,7 @@ Module MainModule
     Function Jail(IP As String) As Boolean
 
         'Check into WhiteList
-        If WhiteList.Contains(IP) Then
+        If Cfg.WhiteList.Contains(IP) Then
             Return False
         End If
 
@@ -170,7 +221,7 @@ Module MainModule
         Dim Rule As INetFwRule2 = GetRule()
         If Rule Is Nothing Then
             Rule = Activator.CreateInstance(RuleType)
-            Rule.Name = FirewallRuleName
+            Rule.Name = Cfg.FirewallRuleName
             Rule.Direction = NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN
             Rule.Protocol = NET_FW_IP_PROTOCOL_.NET_FW_IP_PROTOCOL_ANY
             Rule.Action = NET_FW_ACTION_.NET_FW_ACTION_BLOCK

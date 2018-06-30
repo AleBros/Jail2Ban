@@ -23,6 +23,15 @@
             </xs:sequence>
           </xs:complexType>
         </xs:element>
+        <xs:element name="EventToCheck" msprop:Generator_TableClassName="EventToCheckDataTable" msprop:Generator_TableVarName="tableEventToCheck" msprop:Generator_RowChangedName="EventToCheckRowChanged" msprop:Generator_TablePropName="EventToCheck" msprop:Generator_RowDeletingName="EventToCheckRowDeleting" msprop:Generator_RowChangingName="EventToCheckRowChanging" msprop:Generator_RowEvHandlerName="EventToCheckRowChangeEventHandler" msprop:Generator_RowDeletedName="EventToCheckRowDeleted" msprop:Generator_RowClassName="EventToCheckRow" msprop:Generator_UserTableName="EventToCheck" msprop:Generator_RowEvArgName="EventToCheckRowChangeEvent">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Log" msprop:Generator_ColumnVarNameInTable="columnLog" msprop:Generator_ColumnPropNameInRow="Log" msprop:Generator_ColumnPropNameInTable="LogColumn" msprop:Generator_UserColumnName="Log" type="xs:string" minOccurs="0" />
+              <xs:element name="EventID" msprop:Generator_ColumnVarNameInTable="columnEventID" msprop:Generator_ColumnPropNameInRow="EventID" msprop:Generator_ColumnPropNameInTable="EventIDColumn" msprop:Generator_UserColumnName="EventID" type="xs:int" minOccurs="0" />
+              <xs:element name="PropertyIndex" msprop:Generator_ColumnVarNameInTable="columnPropertyIndex" msprop:Generator_ColumnPropNameInRow="PropertyIndex" msprop:Generator_ColumnPropNameInTable="PropertyIndexColumn" msprop:Generator_UserColumnName="PropertyIndex" type="xs:int" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
       </xs:choice>
     </xs:complexType>
     <xs:unique name="Constraint1" msdata:PrimaryKey="true">
