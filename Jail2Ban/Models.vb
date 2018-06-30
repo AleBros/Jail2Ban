@@ -6,4 +6,7 @@
     Public Property SleepTime = 10000
     Public Property JailFileName = "Jail.json"
     Public Property WhiteList As New List(Of String)
+    Public Property EventsToCheck As New JailDataSet.EventToCheckDataTable
+
 End Class
+

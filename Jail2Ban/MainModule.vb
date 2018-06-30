@@ -14,16 +14,48 @@ Module MainModule
 
     Dim StartTime As DateTime
 
+    'DiscoveryMode - Checks for an event and lists its properties
+    Dim DiscoveryMode = False
+    Dim DiscoveryLog = ""
+    Dim DiscoveryEventId = 0
+
     Sub Main()
 
         Console.WriteLine($"Jail2Ban loading...")
         StartTime = Now
 
         For Each argument In My.Application.CommandLineArgs
-            If argument.ToLower.StartsWith("-configuration:") Then
-                ConfigurationFileName = argument.Substring("-configuration:".Length)
+            Dim arg = ""
+            Dim val = ""
+            If argument.Contains(":") Then
+                arg = argument.Split(":")(0)
+                val = argument.Split(":")(1)
+                If arg.StartsWith("-") Or arg.StartsWith("/") Then
+                    arg = arg.Substring(1)
+                End If
             End If
+            Select Case arg.ToLower
+                Case "configuration"
+                    ConfigurationFileName = val
+                Case "discover", "discovery", "discoverymode"
+                    Boolean.TryParse(val, DiscoveryMode)
+                Case "log"
+                    DiscoveryLog = val
+                Case "eventid", "id"
+                    If IsNumeric(val) Then DiscoveryEventId = CInt(val)
+            End Select
         Next
+
+        If DiscoveryMode Then
+            Discover()
+        Else
+            Start()
+        End If
+
+
+    End Sub
+
+    Private Sub Start()
 
         If IO.File.Exists(ConfigurationFileName) Then
             'Load configuration
@@ -115,7 +147,43 @@ NextEventType:
 
             Threading.Thread.Sleep(Cfg.SleepTime)
         End While
+    End Sub
 
+    Private Sub Discover()
+        Console.ForegroundColor = ConsoleColor.White
+        Console.WriteLine("Discovery mode is turned on.")
+        Console.ResetColor()
+        Console.ForegroundColor = ConsoleColor.Red
+        Dim errors = False
+        If DiscoveryLog = "" Then Console.WriteLine("Log parameter not set, specify the log path.") : errors = True
+        If DiscoveryEventId = 0 Then Console.WriteLine("Event ID parameter not set, specify the event id to listen.") : errors = True
+        Console.ResetColor()
+        Console.WriteLine("Reading " & DiscoveryLog & "...")
+        Dim query As EventLogQuery = Nothing
+        Try
+            query = New EventLogQuery(DiscoveryLog, PathType.LogName) ', "*[System/Level=2]")
+        Catch ex As Exception
+            Console.ForegroundColor = ConsoleColor.Red
+            Console.WriteLine(DiscoveryLog & ": " & ex.Message)
+            Console.ResetColor()
+        End Try
+        If query IsNot Nothing Then
+            Using reader = New EventLogReader(query)
+                Dim e = reader.ReadEvent()
+                While Not e Is Nothing
+                    Console.WriteLine("Index | Value")
+                    If e.Id = DiscoveryEventId Then
+                        For i = 0 To e.Properties.Count - 1
+                            Console.WriteLine($"{i,5} | {e.Properties(i).Value}")
+                        Next
+                    End If
+                    Console.WriteLine("Read next event? (Y/N)")
+                    If Console.ReadLine.Trim.ToUpper = "N" Then Exit Sub
+
+                    e = reader.ReadEvent()
+                End While
+            End Using
+        End If
     End Sub
 
     Private Sub DrawTable(JailTable As JailDataSet.JailDataTable)
