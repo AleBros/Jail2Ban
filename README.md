@@ -1,17 +1,17 @@
 # Jail2Ban
 Fail2ban version for windows in vb.net - inspired on wail2ban - json based -> jail :)
 
-# What project does
+## What project does
 Jail2Ban locks IP addresses using Windows Firewall
 
-# How it works
+## How it works
 - Search for failed login attempts into the windows event log
 - Retrives the remote endpoint ip address from the log properties
 - Creates a single firewall rule if not existing (wail2ban is different in this approach)
 - Adds a locked IP address
 - Shows into the console the "jail" status
 
-# Future updates:
+## Future updates:
 - Create a json configuration file 
 - Handle different operating systems
 - Add sql server ban
