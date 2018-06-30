@@ -11,7 +11,8 @@ Module MainModule
     Dim WhiteList As New List(Of String)
     Dim FirewallRuleName = "Jail2Ban block" ' What we name our Rules
     Dim CheckMinutes = 120  ' We check the most recent X minutes of log.       Default: 120
-    Dim CheckCount = 5    ' Ban after this many failures in search period.     Default: 5
+    Dim CheckCount = 5      ' Ban after this many failures in search period.   Default: 5
+
     Dim SleepTime = 10000
     Dim JailFileName = "Jail.json"
 
@@ -23,11 +24,17 @@ Module MainModule
         Next
 
         'Load History
-        Dim fails As New JailDataSet.JailDataTable
+        Dim JailTable As New JailDataSet.JailDataTable
         If IO.File.Exists(JailFileName) Then
-            fails = Newtonsoft.Json.JsonConvert.DeserializeObject(Of JailDataSet.JailDataTable)(IO.File.ReadAllText(JailFileName))
+            JailTable = Newtonsoft.Json.JsonConvert.DeserializeObject(Of JailDataSet.JailDataTable)(IO.File.ReadAllText(JailFileName))
         End If
 
+        'Lock IPs basing on the history file (in case you need to recreate the block rule loading another computer history)
+        For Each row In JailTable.Where(Function(x) x.Banned Or (x.Count >= CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < CheckMinutes))
+            row.Banned = MainModule.Jail(row.IP)
+        Next
+
+        'Starts the infinite loop
         While True
 
             Dim LogName = "Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational"
@@ -38,26 +45,25 @@ Module MainModule
                 While Not e Is Nothing
                     If e.Id = 140 Then
                         Dim ip = e.Properties(0).Value
-                        Dim fRow = fails.FindByIP(ip)
-                        If fRow Is Nothing Then
-                            fRow = fails.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                        Dim row = JailTable.FindByIP(ip)
+                        If row Is Nothing Then
+                            row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
                         End If
-                        If fRow.Last < e.TimeCreated Then
-                            fRow.Count += 1
-                            fRow.Last = e.TimeCreated
-                            If fRow.Count >= CheckCount And DateDiff(DateInterval.Minute, fRow.First, fRow.Last) < CheckMinutes Then
-                                Jail(ip)
-                                fRow.Banned = True
+                        If row.Last < e.TimeCreated Then
+                            row.Count += 1
+                            row.Last = e.TimeCreated
+                            If row.Count >= CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < CheckMinutes Then
+                                row.Banned = MainModule.Jail(ip)
                             End If
                         End If
                     End If
                     e = reader.ReadEvent()
                 End While
             End Using
-            DrawTable(fails)
+            DrawTable(JailTable)
             Console.WriteLine("Time " & Now.ToShortTimeString)
 
-            Dim j = Newtonsoft.Json.JsonConvert.SerializeObject(fails)
+            Dim j = Newtonsoft.Json.JsonConvert.SerializeObject(JailTable)
             My.Computer.FileSystem.WriteAllText(JailFileName, j, False)
 
             Threading.Thread.Sleep(SleepTime)
@@ -65,19 +71,19 @@ Module MainModule
 
     End Sub
 
-    Private Sub DrawTable(fails As JailDataSet.JailDataTable)
+    Private Sub DrawTable(JailTable As JailDataSet.JailDataTable)
         Console.Clear()
-        If fails.Count = 0 Then
+        If JailTable.Count = 0 Then
             Console.WriteLine("Table is empty!")
         Else
             'Getting the columns content max width into a list
             Dim GetColumnMaxWidth = Function(ColumnName As String) As Integer
-                                        Dim longRow = fails.OrderByDescending(Function(x) If(x.IsNull(ColumnName), 0, x.Item(ColumnName).ToString.Length)).First
+                                        Dim longRow = JailTable.OrderByDescending(Function(x) If(x.IsNull(ColumnName), 0, x.Item(ColumnName).ToString.Length)).First
                                         Return Math.Max(If(longRow.IsNull(ColumnName), 0, longRow.Item(ColumnName).ToString.Length), ColumnName.Length)
                                     End Function
 
-            Dim ColumnsWidth = From c As DataColumn In fails.Columns
-                              Select New With {
+            Dim ColumnsWidth = From c As DataColumn In JailTable.Columns
+                               Select New With {
                                   .ColumnName = c.ColumnName,
                                   .Width = GetColumnMaxWidth(c.ColumnName)
                                   }
@@ -92,12 +98,27 @@ Module MainModule
             Console.WriteLine("-".PadRight(header.Length, "-"))
 
             'Adding rows
-            For Each r In fails.OrderByDescending(Function(x) x.Count)
-                Dim DataFields As New List(Of String)
+            For Each r In JailTable.OrderByDescending(Function(x) x.Count)
                 For Each c In ColumnsWidth
-                    DataFields.Add(If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width))
+                    Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
+                    Select Case c.ColumnName
+                        Case "IP"
+                            If WhiteList.Contains(r.IP) Then Console.ForegroundColor = ConsoleColor.White
+                        Case "Count"
+                            If r.Count >= CheckCount And Not r.Banned Then Console.ForegroundColor = ConsoleColor.Red
+                        Case "First", "Last"
+                            If DateDiff(DateInterval.Second, r.Item(c.ColumnName), Now) <= SleepTime / 1000 Then Console.ForegroundColor = ConsoleColor.Yellow
+                        Case "Banned"
+                            If r.Banned Then Console.ForegroundColor = ConsoleColor.Green
+                    End Select
+                    Console.Write(Data)
+                    Console.ResetColor()
+                    If c.ColumnName <> "Banned" Then
+                        Console.Write("|")
+                    Else
+                        Console.WriteLine("")
+                    End If
                 Next
-                Console.WriteLine(Join(DataFields.ToArray, "|"))
             Next
 
             'Total row
@@ -107,11 +128,11 @@ Module MainModule
                 Dim Data = ""
                 Select Case c.ColumnName
                     Case "IP"
-                        Data = "Tot: " & fails.Count
+                        Data = "Tot: " & JailTable.Count
                     Case "Count"
-                        Data = fails.Select(Function(x) x.Count).Sum
+                        Data = JailTable.Select(Function(x) x.Count).Sum
                     Case "Banned"
-                        Data = fails.Where(Function(x) x.Banned).Count
+                        Data = JailTable.Where(Function(x) x.Banned).Count
                 End Select
                 TotalsFields.Add(Data.PadLeft(c.Width))
             Next
@@ -137,13 +158,14 @@ Module MainModule
         Return Rules.FirstOrDefault
     End Function
 
-    Function Jail(IP As String) As String
-        If IP.Contains("/") Then
-            IP = IP.Substring(0, IP.IndexOf("/"))
-        End If
+    Function Jail(IP As String) As Boolean
+
+        'Check into WhiteList
         If WhiteList.Contains(IP) Then
-            Return IP & " whitelisted!"
+            Return False
         End If
+
+        'Act on the rule
         Dim RuleType = Type.GetTypeFromProgID("HNetCfg.FWRule")
         Dim Rule As INetFwRule2 = GetRule()
         If Rule Is Nothing Then
@@ -160,16 +182,16 @@ Module MainModule
             If Not list.Any(Function(x) x.Split("/")(0) = IP) Then
                 list.Add(IP)
                 Dim a = list.OrderBy(Function(x) x).ToArray
+                'Adding the IP to the ban list
                 Rule.RemoteAddresses = Join(a, ",")
-                Return $"IP {IP} banned!"
             Else
-                'Console.WriteLine($"IP {IP} already banned.")
+                'IP is already in the ban list
             End If
+            Return True
         End If
-        Return ""
+        Return False
     End Function
 
 #End Region
-
 
 End Module
