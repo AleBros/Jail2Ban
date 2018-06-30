@@ -11,8 +11,10 @@ Jail2Ban locks IP addresses using Windows Firewall
 - Adds a locked IP address
 - Shows into the console the "jail" status
 
+## Improvements from base version
+- Added a json configuration file 
+
 ## Future updates:
-- Create a json configuration file 
 - Handle different operating systems
 - Add sql server ban
 - Log every failed attempt (windows log does not retain a lot of data by default setting)
