@@ -18,6 +18,7 @@ Module MainModule
     Dim DiscoveryMode = False
     Dim DiscoveryLog = ""
     Dim DiscoveryEventId = 0
+    Dim DiscoveryRegex = ""
 
     Sub Main()
 
@@ -43,6 +44,8 @@ Module MainModule
                     DiscoveryLog = val
                 Case "eventid", "id"
                     If IsNumeric(val) Then DiscoveryEventId = CInt(val)
+                Case "regex"
+                    DiscoveryRegex = val
             End Select
         Next
 
@@ -51,7 +54,6 @@ Module MainModule
         Else
             Start()
         End If
-
 
     End Sub
 
@@ -99,9 +101,10 @@ Module MainModule
         Threading.Thread.Sleep(5000)
 
         Dim EventsToCheck = New JailDataSet.EventToCheckDataTable
-        EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0)
-        EventsToCheck.AddEventToCheckRow("Security", 4625, 19)
-
+        EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0, Nothing)
+        EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing)
+        EventsToCheck.AddEventToCheckRow("Application", 18456, 2, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
+        EventsToCheck.AddEventToCheckRow("Application", 17806, 4, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
         'Starts the infinite loop
         While True
 
@@ -122,15 +125,20 @@ Module MainModule
                     While Not e Is Nothing
                         If e.Id = etcRow.EventID Then
                             Dim ip = e.Properties(etcRow.PropertyIndex).Value
-                            Dim row = JailTable.FindByIP(ip)
-                            If row Is Nothing Then
-                                row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                            If Not etcRow.IsRegexNull OrElse etcRow.Regex <> "" Then
+                                ip = GetResult(ip, etcRow.Regex)
                             End If
-                            If row.Last < e.TimeCreated Then
-                                row.Count += 1
-                                row.Last = e.TimeCreated
-                                If row.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < Cfg.CheckMinutes Then
-                                    row.Banned = MainModule.Jail(ip)
+                            If ip <> "" Then
+                                Dim row = JailTable.FindByIP(ip)
+                                If row Is Nothing Then
+                                    row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                                End If
+                                If row.Last < e.TimeCreated Then
+                                    row.Count += 1
+                                    row.Last = e.TimeCreated
+                                    If row.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < Cfg.CheckMinutes Then
+                                        row.Banned = MainModule.Jail(ip)
+                                    End If
                                 End If
                             End If
                         End If
@@ -171,20 +179,39 @@ NextEventType:
             Using reader = New EventLogReader(query)
                 Dim e = reader.ReadEvent()
                 While Not e Is Nothing
-                    Console.WriteLine("Index | Value")
                     If e.Id = DiscoveryEventId Then
+                        Console.WriteLine("Index | Value")
                         For i = 0 To e.Properties.Count - 1
                             Console.WriteLine($"{i,5} | {e.Properties(i).Value}")
                         Next
-                    End If
-                    Console.WriteLine("Read next event? (Y/N)")
-                    If Console.ReadLine.Trim.ToUpper = "N" Then Exit Sub
+                        Console.WriteLine("Read next event? (Y/N)")
+                        If Console.ReadLine.Trim.ToUpper = "N" Then Exit Sub
 
+                    End If
                     e = reader.ReadEvent()
                 End While
             End Using
         End If
     End Sub
+
+    Private Function GetResult(value As String, regex As String) As String
+        Dim ResultList = New Specialized.StringCollection()
+        Try
+            Dim RegexObj As New Text.RegularExpressions.Regex(regex)
+            Dim MatchResult As Text.RegularExpressions.Match = RegexObj.Match(value)
+            While MatchResult.Success
+                ResultList.Add(MatchResult.Value)
+                MatchResult = MatchResult.NextMatch()
+            End While
+        Catch ex As ArgumentException
+            'Syntax error in the regular expression
+        End Try
+        If ResultList.Count > 0 Then
+            Return ResultList(0)
+        Else
+            Return ""
+        End If
+    End Function
 
     Private Sub DrawTable(JailTable As JailDataSet.JailDataTable)
         Console.Clear()

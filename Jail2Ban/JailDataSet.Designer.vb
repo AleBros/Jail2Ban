@@ -637,6 +637,8 @@ Partial Public Class JailDataSet
         
         Private columnPropertyIndex As Global.System.Data.DataColumn
         
+        Private columnRegex As Global.System.Data.DataColumn
+        
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
          Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
         Public Sub New()
@@ -697,6 +699,14 @@ Partial Public Class JailDataSet
         End Property
         
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
+        Public ReadOnly Property RegexColumn() As Global.System.Data.DataColumn
+            Get
+                Return Me.columnRegex
+            End Get
+        End Property
+        
+        <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
          Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0"),  _
          Global.System.ComponentModel.Browsable(false)>  _
         Public ReadOnly Property Count() As Integer
@@ -733,9 +743,9 @@ Partial Public Class JailDataSet
         
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
          Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
-        Public Overloads Function AddEventToCheckRow(ByVal Log As String, ByVal EventID As Integer, ByVal PropertyIndex As Integer) As EventToCheckRow
+        Public Overloads Function AddEventToCheckRow(ByVal Log As String, ByVal EventID As Integer, ByVal PropertyIndex As Integer, ByVal Regex As String) As EventToCheckRow
             Dim rowEventToCheckRow As EventToCheckRow = CType(Me.NewRow,EventToCheckRow)
-            Dim columnValuesArray() As Object = New Object() {Log, EventID, PropertyIndex}
+            Dim columnValuesArray() As Object = New Object() {Log, EventID, PropertyIndex, Regex}
             rowEventToCheckRow.ItemArray = columnValuesArray
             Me.Rows.Add(rowEventToCheckRow)
             Return rowEventToCheckRow
@@ -761,6 +771,7 @@ Partial Public Class JailDataSet
             Me.columnLog = MyBase.Columns("Log")
             Me.columnEventID = MyBase.Columns("EventID")
             Me.columnPropertyIndex = MyBase.Columns("PropertyIndex")
+            Me.columnRegex = MyBase.Columns("Regex")
         End Sub
         
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
@@ -772,6 +783,8 @@ Partial Public Class JailDataSet
             MyBase.Columns.Add(Me.columnEventID)
             Me.columnPropertyIndex = New Global.System.Data.DataColumn("PropertyIndex", GetType(Integer), Nothing, Global.System.Data.MappingType.Element)
             MyBase.Columns.Add(Me.columnPropertyIndex)
+            Me.columnRegex = New Global.System.Data.DataColumn("Regex", GetType(String), Nothing, Global.System.Data.MappingType.Element)
+            MyBase.Columns.Add(Me.columnRegex)
         End Sub
         
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
@@ -1098,6 +1111,21 @@ Partial Public Class JailDataSet
         
         <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
          Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
+        Public Property Regex() As String
+            Get
+                Try 
+                    Return CType(Me(Me.tableEventToCheck.RegexColumn),String)
+                Catch e As Global.System.InvalidCastException
+                    Throw New Global.System.Data.StrongTypingException("Il valore della colonna 'Regex' nella tabella 'EventToCheck' è DBNull.", e)
+                End Try
+            End Get
+            Set
+                Me(Me.tableEventToCheck.RegexColumn) = value
+            End Set
+        End Property
+        
+        <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
         Public Function IsLogNull() As Boolean
             Return Me.IsNull(Me.tableEventToCheck.LogColumn)
         End Function
@@ -1130,6 +1158,18 @@ Partial Public Class JailDataSet
          Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
         Public Sub SetPropertyIndexNull()
             Me(Me.tableEventToCheck.PropertyIndexColumn) = Global.System.Convert.DBNull
+        End Sub
+        
+        <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
+        Public Function IsRegexNull() As Boolean
+            Return Me.IsNull(Me.tableEventToCheck.RegexColumn)
+        End Function
+        
+        <Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.CodeDom.Compiler.GeneratedCodeAttribute("System.Data.Design.TypedDataSetGenerator", "15.0.0.0")>  _
+        Public Sub SetRegexNull()
+            Me(Me.tableEventToCheck.RegexColumn) = Global.System.Convert.DBNull
         End Sub
     End Class
     

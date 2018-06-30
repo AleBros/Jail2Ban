@@ -12,7 +12,7 @@
   <xs:element name="JailDataSet" msdata:IsDataSet="true" msdata:UseCurrentLocale="true" msprop:EnableTableAdapterManager="true" msprop:Generator_DataSetName="JailDataSet" msprop:Generator_UserDSName="JailDataSet">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element name="Jail" msprop:Generator_TableClassName="JailDataTable" msprop:Generator_TableVarName="tableJail" msprop:Generator_TablePropName="Jail" msprop:Generator_RowDeletingName="JailRowDeleting" msprop:Generator_RowChangingName="JailRowChanging" msprop:Generator_RowEvHandlerName="JailRowChangeEventHandler" msprop:Generator_RowDeletedName="JailRowDeleted" msprop:Generator_UserTableName="Jail" msprop:Generator_RowChangedName="JailRowChanged" msprop:Generator_RowEvArgName="JailRowChangeEvent" msprop:Generator_RowClassName="JailRow">
+        <xs:element name="Jail" msprop:Generator_TableClassName="JailDataTable" msprop:Generator_TableVarName="tableJail" msprop:Generator_RowChangedName="JailRowChanged" msprop:Generator_TablePropName="Jail" msprop:Generator_RowDeletingName="JailRowDeleting" msprop:Generator_RowChangingName="JailRowChanging" msprop:Generator_RowEvHandlerName="JailRowChangeEventHandler" msprop:Generator_RowDeletedName="JailRowDeleted" msprop:Generator_RowClassName="JailRow" msprop:Generator_UserTableName="Jail" msprop:Generator_RowEvArgName="JailRowChangeEvent">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="IP" msprop:Generator_ColumnVarNameInTable="columnIP" msprop:Generator_ColumnPropNameInRow="IP" msprop:Generator_ColumnPropNameInTable="IPColumn" msprop:Generator_UserColumnName="IP" type="xs:string" />
@@ -23,12 +23,13 @@
             </xs:sequence>
           </xs:complexType>
         </xs:element>
-        <xs:element name="EventToCheck" msprop:Generator_TableClassName="EventToCheckDataTable" msprop:Generator_TableVarName="tableEventToCheck" msprop:Generator_RowChangedName="EventToCheckRowChanged" msprop:Generator_TablePropName="EventToCheck" msprop:Generator_RowDeletingName="EventToCheckRowDeleting" msprop:Generator_RowChangingName="EventToCheckRowChanging" msprop:Generator_RowEvHandlerName="EventToCheckRowChangeEventHandler" msprop:Generator_RowDeletedName="EventToCheckRowDeleted" msprop:Generator_RowClassName="EventToCheckRow" msprop:Generator_UserTableName="EventToCheck" msprop:Generator_RowEvArgName="EventToCheckRowChangeEvent">
+        <xs:element name="EventToCheck" msprop:Generator_TableClassName="EventToCheckDataTable" msprop:Generator_TableVarName="tableEventToCheck" msprop:Generator_TablePropName="EventToCheck" msprop:Generator_RowDeletingName="EventToCheckRowDeleting" msprop:Generator_RowChangingName="EventToCheckRowChanging" msprop:Generator_RowEvHandlerName="EventToCheckRowChangeEventHandler" msprop:Generator_RowDeletedName="EventToCheckRowDeleted" msprop:Generator_UserTableName="EventToCheck" msprop:Generator_RowChangedName="EventToCheckRowChanged" msprop:Generator_RowEvArgName="EventToCheckRowChangeEvent" msprop:Generator_RowClassName="EventToCheckRow">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="Log" msprop:Generator_ColumnVarNameInTable="columnLog" msprop:Generator_ColumnPropNameInRow="Log" msprop:Generator_ColumnPropNameInTable="LogColumn" msprop:Generator_UserColumnName="Log" type="xs:string" minOccurs="0" />
               <xs:element name="EventID" msprop:Generator_ColumnVarNameInTable="columnEventID" msprop:Generator_ColumnPropNameInRow="EventID" msprop:Generator_ColumnPropNameInTable="EventIDColumn" msprop:Generator_UserColumnName="EventID" type="xs:int" minOccurs="0" />
               <xs:element name="PropertyIndex" msprop:Generator_ColumnVarNameInTable="columnPropertyIndex" msprop:Generator_ColumnPropNameInRow="PropertyIndex" msprop:Generator_ColumnPropNameInTable="PropertyIndexColumn" msprop:Generator_UserColumnName="PropertyIndex" type="xs:int" minOccurs="0" />
+              <xs:element name="Regex" msprop:Generator_ColumnVarNameInTable="columnRegex" msprop:Generator_ColumnPropNameInRow="Regex" msprop:Generator_ColumnPropNameInTable="RegexColumn" msprop:Generator_UserColumnName="Regex" type="xs:string" minOccurs="0" />
             </xs:sequence>
           </xs:complexType>
         </xs:element>
