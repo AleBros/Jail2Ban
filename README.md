@@ -13,10 +13,9 @@ Jail2Ban locks IP addresses using Windows Firewall
 
 ## Improvements from base version
 - Added a json configuration file 
-
+- Added sql server ban
 ## Future updates:
 - Handle different operating systems
-- Add sql server ban
 - Log every failed attempt (windows log does not retain a lot of data by default setting)
 - Add a redemption time
 - Create a webservice (maybe REST) to share between different server an IP reputation
