@@ -105,14 +105,22 @@ Module MainModule
         EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing)
         EventsToCheck.AddEventToCheckRow("Application", 18456, 2, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
         EventsToCheck.AddEventToCheckRow("Application", 17806, 4, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
+
         'Starts the infinite loop
         While True
-
+            Dim LastQueryTime As Date?
+            Dim StartQueryTime = Now
             For Each etcRow In EventsToCheck
                 Console.WriteLine("Reading " & etcRow.Log & "...")
                 Dim query As EventLogQuery
                 Try
-                    query = New EventLogQuery(etcRow.Log, PathType.LogName) ', "*[System/Level=2]")
+                    'If it is the first time I'll check the entair registry
+                    If Not LastQueryTime.HasValue Then
+                        query = New EventLogQuery(etcRow.Log, PathType.LogName)
+                    Else
+                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[TimeCreated[@SystemTime = '{LastQueryTime.Value.ToUniversalTime.ToString("o")}']]]")
+                    End If
+
                 Catch ex As Exception
                     Console.ForegroundColor = ConsoleColor.Red
                     Console.WriteLine(etcRow.Log & ": " & ex.Message)
@@ -125,7 +133,7 @@ Module MainModule
                     While Not e Is Nothing
                         If e.Id = etcRow.EventID Then
                             Dim ip = e.Properties(etcRow.PropertyIndex).Value
-                            If Not etcRow.IsRegexNull OrElse etcRow.Regex <> "" Then
+                            If Not etcRow.IsRegexNull AndAlso etcRow.Regex <> "" Then
                                 ip = GetResult(ip, etcRow.Regex)
                             End If
                             If ip <> "" Then
@@ -142,10 +150,16 @@ Module MainModule
                                 End If
                             End If
                         End If
+
+                        'Need to free memory
+                        e.Dispose()
+                        e = Nothing
+
                         e = reader.ReadEvent()
                     End While
                 End Using
 NextEventType:
+                query = Nothing
             Next
 
             DrawTable(JailTable)
@@ -153,7 +167,11 @@ NextEventType:
             Dim j = JsonConvert.SerializeObject(JailTable)
             My.Computer.FileSystem.WriteAllText(Cfg.JailFileName, j, False)
 
+            'Need do free memory
+            GC.Collect()
+
             Threading.Thread.Sleep(Cfg.SleepTime)
+            LastQueryTime = StartQueryTime
         End While
     End Sub
 
@@ -188,6 +206,10 @@ NextEventType:
                         If Console.ReadLine.Trim.ToUpper = "N" Then Exit Sub
 
                     End If
+                    'Need to free memory
+                    e.Dispose()
+                    e = Nothing
+
                     e = reader.ReadEvent()
                 End While
             End Using
@@ -203,6 +225,8 @@ NextEventType:
                 ResultList.Add(MatchResult.Value)
                 MatchResult = MatchResult.NextMatch()
             End While
+            RegexObj = Nothing
+            MatchResult = Nothing
         Catch ex As ArgumentException
             'Syntax error in the regular expression
         End Try
