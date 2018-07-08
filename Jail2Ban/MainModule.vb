@@ -87,6 +87,7 @@ Module MainModule
         'Load History
         Console.WriteLine("Loading history file...")
         Dim JailTable As New JailDataSet.JailDataTable
+        Dim LogTable As New JailDataSet.LogDataTable
         If IO.File.Exists(Cfg.JailFileName) Then
             JailTable = JsonConvert.DeserializeObject(Of JailDataSet.JailDataTable)(IO.File.ReadAllText(Cfg.JailFileName))
         End If
@@ -137,15 +138,17 @@ Module MainModule
                                 ip = GetResult(ip, etcRow.Regex)
                             End If
                             If ip <> "" Then
-                                Dim row = JailTable.FindByIP(ip)
-                                If row Is Nothing Then
-                                    row = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
-                                End If
-                                If row.Last < e.TimeCreated Then
-                                    row.Count += 1
-                                    row.Last = e.TimeCreated
-                                    If row.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, row.First, row.Last) < Cfg.CheckMinutes Then
-                                        row.Banned = MainModule.Jail(ip)
+                                Dim jRow = JailTable.FindByIP(ip)
+                                Dim lRow = LogTable.FindByEventIDLogNameDateTimeIP(e.Id, etcRow.Log, e.TimeCreated, ip)
+                                If jRow Is Nothing Then jRow = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                                If lRow Is Nothing Then lRow = LogTable.AddLogRow(ip, e.TimeCreated, etcRow.Log, e.Id)
+
+                                If jRow.Last < e.TimeCreated Then
+                                    jRow.Count += 1
+                                    jRow.Last = e.TimeCreated
+                                    'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                    
+                                    If LogTable.Where(Function(x) x.IP = ip And x.DateTime >= e.TimeCreated.Value.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, jRow.First, jRow.Last) < Cfg.CheckMinutes Then
+                                        jRow.Banned = MainModule.Jail(ip)
                                     End If
                                 End If
                             End If
@@ -331,9 +334,11 @@ NextEventType:
     Function Jail(IP As String) As Boolean
 
         'Check into WhiteList
-        If Cfg.WhiteList.Contains(IP) Then
+        If Cfg.WhiteList.Contains(IP) Or IP = "-" Or Not IsNumeric(IP.Replace(".", "")) Then
             Return False
         End If
+
+        Console.WriteLine("Banning IP '" & IP & "'...")
 
         'Act on the rule
         Dim RuleType = Type.GetTypeFromProgID("HNetCfg.FWRule")

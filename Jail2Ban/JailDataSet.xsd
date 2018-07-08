@@ -12,7 +12,7 @@
   <xs:element name="JailDataSet" msdata:IsDataSet="true" msdata:UseCurrentLocale="true" msprop:EnableTableAdapterManager="true" msprop:Generator_DataSetName="JailDataSet" msprop:Generator_UserDSName="JailDataSet">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element name="Jail" msprop:Generator_TableClassName="JailDataTable" msprop:Generator_TableVarName="tableJail" msprop:Generator_RowChangedName="JailRowChanged" msprop:Generator_TablePropName="Jail" msprop:Generator_RowDeletingName="JailRowDeleting" msprop:Generator_RowChangingName="JailRowChanging" msprop:Generator_RowEvHandlerName="JailRowChangeEventHandler" msprop:Generator_RowDeletedName="JailRowDeleted" msprop:Generator_RowClassName="JailRow" msprop:Generator_UserTableName="Jail" msprop:Generator_RowEvArgName="JailRowChangeEvent">
+        <xs:element name="Jail" msprop:Generator_TableClassName="JailDataTable" msprop:Generator_TableVarName="tableJail" msprop:Generator_TablePropName="Jail" msprop:Generator_RowDeletingName="JailRowDeleting" msprop:Generator_RowChangingName="JailRowChanging" msprop:Generator_RowEvHandlerName="JailRowChangeEventHandler" msprop:Generator_RowDeletedName="JailRowDeleted" msprop:Generator_UserTableName="Jail" msprop:Generator_RowChangedName="JailRowChanged" msprop:Generator_RowEvArgName="JailRowChangeEvent" msprop:Generator_RowClassName="JailRow">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="IP" msprop:Generator_ColumnVarNameInTable="columnIP" msprop:Generator_ColumnPropNameInRow="IP" msprop:Generator_ColumnPropNameInTable="IPColumn" msprop:Generator_UserColumnName="IP" type="xs:string" />
@@ -23,7 +23,7 @@
             </xs:sequence>
           </xs:complexType>
         </xs:element>
-        <xs:element name="EventToCheck" msprop:Generator_TableClassName="EventToCheckDataTable" msprop:Generator_TableVarName="tableEventToCheck" msprop:Generator_TablePropName="EventToCheck" msprop:Generator_RowDeletingName="EventToCheckRowDeleting" msprop:Generator_RowChangingName="EventToCheckRowChanging" msprop:Generator_RowEvHandlerName="EventToCheckRowChangeEventHandler" msprop:Generator_RowDeletedName="EventToCheckRowDeleted" msprop:Generator_UserTableName="EventToCheck" msprop:Generator_RowChangedName="EventToCheckRowChanged" msprop:Generator_RowEvArgName="EventToCheckRowChangeEvent" msprop:Generator_RowClassName="EventToCheckRow">
+        <xs:element name="EventToCheck" msprop:Generator_TableClassName="EventToCheckDataTable" msprop:Generator_TableVarName="tableEventToCheck" msprop:Generator_RowChangedName="EventToCheckRowChanged" msprop:Generator_TablePropName="EventToCheck" msprop:Generator_RowDeletingName="EventToCheckRowDeleting" msprop:Generator_RowChangingName="EventToCheckRowChanging" msprop:Generator_RowEvHandlerName="EventToCheckRowChangeEventHandler" msprop:Generator_RowDeletedName="EventToCheckRowDeleted" msprop:Generator_RowClassName="EventToCheckRow" msprop:Generator_UserTableName="EventToCheck" msprop:Generator_RowEvArgName="EventToCheckRowChangeEvent">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="Log" msprop:Generator_ColumnVarNameInTable="columnLog" msprop:Generator_ColumnPropNameInRow="Log" msprop:Generator_ColumnPropNameInTable="LogColumn" msprop:Generator_UserColumnName="Log" type="xs:string" minOccurs="0" />
@@ -33,10 +33,27 @@
             </xs:sequence>
           </xs:complexType>
         </xs:element>
+        <xs:element name="Log" msprop:Generator_TableClassName="LogDataTable" msprop:Generator_TableVarName="tableLog" msprop:Generator_TablePropName="Log" msprop:Generator_RowDeletingName="LogRowDeleting" msprop:Generator_RowChangingName="LogRowChanging" msprop:Generator_RowEvHandlerName="LogRowChangeEventHandler" msprop:Generator_RowDeletedName="LogRowDeleted" msprop:Generator_UserTableName="Log" msprop:Generator_RowChangedName="LogRowChanged" msprop:Generator_RowEvArgName="LogRowChangeEvent" msprop:Generator_RowClassName="LogRow">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="IP" msprop:Generator_ColumnVarNameInTable="columnIP" msprop:Generator_ColumnPropNameInRow="IP" msprop:Generator_ColumnPropNameInTable="IPColumn" msprop:Generator_UserColumnName="IP" type="xs:string" />
+              <xs:element name="DateTime" msprop:Generator_ColumnVarNameInTable="columnDateTime" msprop:Generator_ColumnPropNameInRow="DateTime" msprop:Generator_ColumnPropNameInTable="DateTimeColumn" msprop:Generator_UserColumnName="DateTime" type="xs:dateTime" />
+              <xs:element name="LogName" msprop:Generator_ColumnVarNameInTable="columnLogName" msprop:Generator_ColumnPropNameInRow="LogName" msprop:Generator_ColumnPropNameInTable="LogNameColumn" msprop:Generator_UserColumnName="LogName" type="xs:string" />
+              <xs:element name="EventID" msprop:Generator_ColumnVarNameInTable="columnEventID" msprop:Generator_ColumnPropNameInRow="EventID" msprop:Generator_ColumnPropNameInTable="EventIDColumn" msprop:Generator_UserColumnName="EventID" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
       </xs:choice>
     </xs:complexType>
     <xs:unique name="Constraint1" msdata:PrimaryKey="true">
       <xs:selector xpath=".//mstns:Jail" />
+      <xs:field xpath="mstns:IP" />
+    </xs:unique>
+    <xs:unique name="Log_Constraint1" msdata:ConstraintName="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:Log" />
+      <xs:field xpath="mstns:EventID" />
+      <xs:field xpath="mstns:LogName" />
+      <xs:field xpath="mstns:DateTime" />
       <xs:field xpath="mstns:IP" />
     </xs:unique>
   </xs:element>
