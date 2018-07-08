@@ -20,6 +20,9 @@ Module MainModule
     Dim DiscoveryEventId = 0
     Dim DiscoveryRegex = ""
 
+    Dim FullLog = False
+    Dim ConsoleHeight = 50
+
     Sub Main()
 
         Console.WriteLine($"Jail2Ban loading...")
@@ -46,6 +49,8 @@ Module MainModule
                     If IsNumeric(val) Then DiscoveryEventId = CInt(val)
                 Case "regex"
                     DiscoveryRegex = val
+                Case "full"
+                    FullLog = True
             End Select
         Next
 
@@ -267,7 +272,8 @@ NextEventType:
             Console.WriteLine("-".PadRight(header.Length, "-"))
 
             'Adding rows
-            For Each r In JailTable.OrderByDescending(Function(x) x.Count)
+            Dim rowcount As Integer = 0
+            For Each r In JailTable.OrderByDescending(Function(x) If(FullLog, x.Count, x.Last))
                 For Each c In ColumnsWidth
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
@@ -280,17 +286,22 @@ NextEventType:
                         Case "Banned"
                             If r.Banned Then Console.ForegroundColor = ConsoleColor.Green
                     End Select
-                    Console.Write(Data)
-                    Console.ResetColor()
-                    If c.ColumnName <> "Banned" Then
-                        Console.Write("|")
-                    Else
-                        Console.WriteLine("")
+                    'if output full table or lines added are less than the console height
+                    If FullLog Or rowcount < ConsoleHeight - 5 Then
+                        Console.Write(Data)
+                        Console.ResetColor()
+                        If c.ColumnName <> "Banned" Then
+                            Console.Write("|")
+                        Else
+                            Console.WriteLine("")
+                        End If
                     End If
                 Next
+                rowcount += 1
             Next
 
             'Total row
+            Console.ResetColor()
             Console.WriteLine("-".PadRight(header.Length, "-"))
             Dim TotalsFields As New List(Of String)
             For Each c In ColumnsWidth
