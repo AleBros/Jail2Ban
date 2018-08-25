@@ -23,6 +23,8 @@ Module MainModule
     Dim FullLog = False
     Dim ConsoleHeight = 50
 
+    Dim BanList As New List(Of String)
+
     Sub Main()
 
         Console.WriteLine($"Jail2Ban loading...")
@@ -98,8 +100,9 @@ Module MainModule
         End If
 
         'Lock IPs basing on the history file (in case you need to recreate the block rule loading another computer history)
-        For Each row In JailTable.Where(Function(x) x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes))
+        For Each row In JailTable.Where(Function(x) Not BanList.Contains(x.IP) AndAlso (x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes)))
             row.Banned = MainModule.Jail(row.IP)
+            If row.Banned Then BanList.Add(row.IP)
         Next
         Console.WriteLine("")
 
@@ -124,7 +127,7 @@ Module MainModule
                     If Not LastQueryTime.HasValue Then
                         query = New EventLogQuery(etcRow.Log, PathType.LogName)
                     Else
-                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[TimeCreated[@SystemTime = '{LastQueryTime.Value.ToUniversalTime.ToString("o")}']]]")
+                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[TimeCreated[@SystemTime >= '{LastQueryTime.Value.ToUniversalTime.ToString("o")}']]]")
                     End If
 
                 Catch ex As Exception
@@ -246,9 +249,12 @@ NextEventType:
     End Function
 
     Private Sub DrawTable(JailTable As JailDataSet.JailDataTable)
+        Dim html As New IO.StringWriter
+        html.Write("<html><body>")
         Console.Clear()
         If JailTable.Count = 0 Then
             Console.WriteLine("Table is empty!")
+            html.Write("Table is empty!")
         Else
             'Getting the columns content max width into a list
             Dim GetColumnMaxWidth = Function(ColumnName As String) As Integer
@@ -270,10 +276,12 @@ NextEventType:
             Dim header = Join(HeaderFields.ToArray, "|")
             Console.WriteLine(header)
             Console.WriteLine("-".PadRight(header.Length, "-"))
-
+            html.Write("<table>")
+            html.Write("<tr><th>" & Join(HeaderFields.ToArray, "</th><th>") & "</th></tr>")
             'Adding rows
             Dim rowcount As Integer = 0
             For Each r In JailTable.OrderByDescending(Function(x) If(FullLog, x.Count, x.Last))
+                html.Write("<tr>")
                 For Each c In ColumnsWidth
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
@@ -295,9 +303,11 @@ NextEventType:
                         Else
                             Console.WriteLine("")
                         End If
+                        html.Write("<td>" & If(r.IsNull(c.ColumnName), "&nbsp;", r.Item(c.ColumnName)).ToString & "</td>")
                     End If
                 Next
                 rowcount += 1
+                html.Write("</tr>")
             Next
 
             'Total row
@@ -322,7 +332,11 @@ NextEventType:
             Next
             Console.WriteLine(Join(TotalsFields.ToArray, "|"))
             Console.WriteLine("-".PadRight(header.Length, "-"))
+            html.Write("<tr><td><b>" & Join(TotalsFields.ToArray, "</b></td><td>") & "</b></td></tr>")
+            html.Write("</table>")
         End If
+        html.Write("</body></html>")
+        My.Computer.FileSystem.WriteAllText("Jail2ban.html", html.ToString, False)
     End Sub
 
 #Region " Firewall management "
