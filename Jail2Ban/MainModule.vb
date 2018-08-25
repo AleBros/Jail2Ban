@@ -281,7 +281,7 @@ NextEventType:
             'Adding rows
             Dim rowcount As Integer = 0
             For Each r In JailTable.OrderByDescending(Function(x) If(FullLog, x.Count, x.Last))
-                html.Write("<tr>")
+                If rowcount < ConsoleHeight - 5 Then html.Write("<tr>")
                 For Each c In ColumnsWidth
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
@@ -306,8 +306,8 @@ NextEventType:
                         html.Write("<td>" & If(r.IsNull(c.ColumnName), "&nbsp;", r.Item(c.ColumnName)).ToString & "</td>")
                     End If
                 Next
+                If rowcount < ConsoleHeight - 5 Then html.Write("</tr>")
                 rowcount += 1
-                html.Write("</tr>")
             Next
 
             'Total row
