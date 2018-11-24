@@ -101,8 +101,10 @@ Module MainModule
 
         'Lock IPs basing on the history file (in case you need to recreate the block rule loading another computer history)
         For Each row In JailTable.Where(Function(x) Not BanList.Contains(x.IP) AndAlso (x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes)))
-            row.Banned = MainModule.Jail(row.IP)
-            If row.Banned Then BanList.Add(row.IP)
+            If Not BanList.Contains(row.IP) Then
+                row.Banned = MainModule.Jail(row.IP)
+                If row.Banned Then BanList.Add(row.IP)
+            End If
         Next
         Console.WriteLine("")
 
@@ -137,6 +139,9 @@ Module MainModule
                     GoTo NextEventType
                 End Try
 
+                Dim CurrentDate = Date.MinValue
+                Dim EventCountPerDay = 0
+
                 Using reader = New EventLogReader(query)
                     Dim e = reader.ReadEvent()
                     While Not e Is Nothing
@@ -160,6 +165,17 @@ Module MainModule
                                     End If
                                 End If
                             End If
+
+                            If CurrentDate <> e.TimeCreated.Value.Date Then
+                                Console.SetCursorPosition(0, Console.CursorTop)
+                                CurrentDate = e.TimeCreated.Value.Date
+                                Console.WriteLine()
+                                Console.Write(CurrentDate.ToShortDateString & " ")
+                                EventCountPerDay = 0
+                            End If
+                            EventCountPerDay += 1
+                            Console.SetCursorPosition(12, Console.CursorTop)
+                            Console.Write(EventCountPerDay)
                         End If
 
                         'Need to free memory
@@ -167,6 +183,7 @@ Module MainModule
                         e = Nothing
 
                         e = reader.ReadEvent()
+
                     End While
                 End Using
 NextEventType:
@@ -281,7 +298,7 @@ NextEventType:
             'Adding rows
             Dim rowcount As Integer = 0
             For Each r In JailTable.OrderByDescending(Function(x) If(FullLog, x.Count, x.Last))
-                If rowcount < ConsoleHeight - 5 Then html.Write("<tr>")
+                If rowcount < Console.WindowHeight - 8 Then html.Write("<tr>")
                 For Each c In ColumnsWidth
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
@@ -295,7 +312,7 @@ NextEventType:
                             If r.Banned Then Console.ForegroundColor = ConsoleColor.Green
                     End Select
                     'if output full table or lines added are less than the console height
-                    If FullLog Or rowcount < ConsoleHeight - 5 Then
+                    If FullLog Or rowcount < Console.WindowHeight - 8 Then
                         Console.Write(Data)
                         Console.ResetColor()
                         If c.ColumnName <> "Banned" Then
@@ -306,7 +323,7 @@ NextEventType:
                         html.Write("<td>" & If(r.IsNull(c.ColumnName), "&nbsp;", r.Item(c.ColumnName)).ToString & "</td>")
                     End If
                 Next
-                If rowcount < ConsoleHeight - 5 Then html.Write("</tr>")
+                If rowcount < Console.WindowHeight - 8 Then html.Write("</tr>")
                 rowcount += 1
             Next
 
@@ -363,8 +380,6 @@ NextEventType:
             Return False
         End If
 
-        Console.WriteLine("Banning IP '" & IP & "'...")
-
         'Act on the rule
         Dim RuleType = Type.GetTypeFromProgID("HNetCfg.FWRule")
         Dim Rule As INetFwRule2 = GetRule()
@@ -377,6 +392,7 @@ NextEventType:
             Rule.Enabled = True
             Rule.RemoteAddresses = IP
             fwPolicy.Rules.Add(Rule)
+            Console.WriteLine("Banning IP '" & IP & "'...")
         Else
             Dim list = Rule.RemoteAddresses.Split(",").ToList
             If Not list.Any(Function(x) x.Split("/")(0) = IP) Then
