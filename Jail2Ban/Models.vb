@@ -7,6 +7,7 @@
     Public Property JailFileName = "Jail.json"
     Public Property WhiteList As New List(Of String)
     Public Property EventsToCheck As New JailDataSet.EventToCheckDataTable
+    Public Property SearchForIISLogPhp404 As Boolean = True
 
 End Class
 

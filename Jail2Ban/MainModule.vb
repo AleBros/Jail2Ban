@@ -23,6 +23,8 @@ Module MainModule
     Dim FullLog = False
     Dim ConsoleHeight = 50
 
+    Dim IISDefaultWebSiteLogFile As String = "C:\inetpub\logs\LogFiles\W3SVC1"
+
     Dim BanList As New List(Of String)
 
     Sub Main()
@@ -55,6 +57,8 @@ Module MainModule
                     FullLog = True
             End Select
         Next
+
+        If Not IO.Directory.Exists(IISDefaultWebSiteLogFile) Then IISDefaultWebSiteLogFile = ""
 
         If DiscoveryMode Then
             Discover()
@@ -91,6 +95,9 @@ Module MainModule
         Next
         Console.WriteLine("")
 
+        'Enable/Disable IIS Log Search for php
+        If Not Cfg.SearchForIISLogPhp404 Then IISDefaultWebSiteLogFile = ""
+
         'Load History
         Console.WriteLine("Loading history file...")
         Dim JailTable As New JailDataSet.JailDataTable
@@ -122,6 +129,7 @@ Module MainModule
             Dim LastQueryTime As Date?
             Dim StartQueryTime = Now
             For Each etcRow In EventsToCheck
+                Console.WriteLine()
                 Console.WriteLine("Reading " & etcRow.Log & "...")
                 Dim query As EventLogQuery
                 Try
@@ -190,6 +198,68 @@ NextEventType:
                 query = Nothing
             Next
 
+            Console.WriteLine()
+            Console.WriteLine("Reading IIS Log Files...")
+            If IISDefaultWebSiteLogFile <> "" Then
+                Dim TodayLog = IO.Path.Combine(IISDefaultWebSiteLogFile, $"u_ex{Now.ToString("yyMMdd")}.log")
+                If IO.File.Exists(TodayLog) Then
+                    'Opening the log file in ReadOnly mode
+                    Dim fs = New IO.FileStream(TodayLog, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.ReadWrite)
+                    Dim sr = New IO.StreamReader(fs)
+                    Dim content = sr.ReadToEnd()
+
+                    Dim LogReader As New IO.StringReader(content)
+                    Dim LogEntry = LogReader.ReadLine
+                    'Getting the fields index inside the log file
+                    Dim cs_ip_index = -1
+                    Dim date_index = -1
+                    Dim time_index = -1
+
+                    While LogEntry IsNot Nothing
+                        'Getting the fields index inside the log file
+                        If LogEntry.StartsWith("#Fields:") Then
+                            Dim fields = LogEntry.Replace("#Fields: ", "").Split(" ")
+                            Dim i = 0
+                            For i = 0 To UBound(fields)
+                                Select Case fields(i)
+                                    Case "c-ip"
+                                        cs_ip_index = i
+                                    Case "date"
+                                        date_index = i
+                                    Case "time"
+                                        time_index = i
+                                End Select
+                            Next
+                        End If
+                        'Reading the log entry
+                        If cs_ip_index >= 0 AndAlso LogEntry.ToLower.Contains("404") AndAlso
+                            (LogEntry.ToLower.Contains(".php") OrElse LogEntry.ToLower.Contains("phpmyadmin") OrElse LogEntry.ToLower.Contains("phpadmin")) Then
+                            Dim Fields = LogEntry.Split(" ")
+                            Dim ip = Fields(cs_ip_index)
+                            Dim LogTime As DateTime = Now
+                            Date.TryParse(Fields(date_index) & " " & Fields(time_index), LogTime)
+
+                            If ip <> "" AndAlso Not BanList.Contains(ip) Then
+                                Dim jRow = JailTable.FindByIP(ip)
+                                If jRow Is Nothing Then jRow = JailTable.AddJailRow(ip, 1, LogTime, LogTime, False)
+
+                                If jRow.Last < LogTime Then
+                                    jRow.Count += 1
+                                    jRow.Last = LogTime
+                                    'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                    
+                                    If LogTable.Where(Function(x) x.IP = ip And x.DateTime >= Now.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, jRow.First, jRow.Last) < Cfg.CheckMinutes Then
+                                        jRow.Banned = MainModule.Jail(ip)
+                                        If jRow.Banned Then
+                                            BanList.Add(ip)
+                                        End If
+                                    End If
+                                End If
+                            End If
+                        End If
+                        LogEntry = LogReader.ReadLine
+                    End While
+                End If
+            End If
             DrawTable(JailTable)
 
             Dim j = JsonConvert.SerializeObject(JailTable)
@@ -323,7 +393,11 @@ NextEventType:
                         html.Write("<td>" & If(r.IsNull(c.ColumnName), "&nbsp;", r.Item(c.ColumnName)).ToString & "</td>")
                     End If
                 Next
-                If rowcount < Console.WindowHeight - 8 Then html.Write("</tr>")
+                If rowcount < Console.WindowHeight - 8 Then
+                    html.Write("</tr>")
+                Else
+                    Exit For
+                End If
                 rowcount += 1
             Next
 
