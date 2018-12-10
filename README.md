@@ -14,6 +14,8 @@ Jail2Ban locks IP addresses using Windows Firewall
 ## Improvements from base version
 - Added a json configuration file 
 - Added sql server ban
+- Added simple feature for IIS W3Svc log inspection (now searches for php calls and 404 response)
+
 ## Future updates:
 - Handle different operating systems
 - Log every failed attempt (windows log does not retain a lot of data by default setting)
