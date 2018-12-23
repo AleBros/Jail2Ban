@@ -107,7 +107,7 @@ Module MainModule
         End If
 
         'Lock IPs basing on the history file (in case you need to recreate the block rule loading another computer history)
-        For Each row In JailTable.Where(Function(x) Not BanList.Contains(x.IP) AndAlso (x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes)))
+        For Each row In JailTable.Where(Function(x) Not BanList.Contains(x.IP) AndAlso (x.Banned Or (x.Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, x.First, x.Last) < Cfg.CheckMinutes) Or x.Count > Cfg.OverallThreshold))
             If Not BanList.Contains(row.IP) Then
                 row.Banned = MainModule.Jail(row.IP)
                 If row.Banned Then BanList.Add(row.IP)
@@ -172,9 +172,14 @@ Module MainModule
                                         jRow.Banned = MainModule.Jail(ip)
                                     End If
                                 End If
+                                'Check if the same ip has reached the overall threshold limit
+                                If jRow.Count > Cfg.OverallThreshold And Not jRow.Banned Then
+                                    jRow.Banned = MainModule.Jail(ip)
+                                End If
                             End If
 
                             If CurrentDate <> e.TimeCreated.Value.Date Then
+                                'First line for the current date
                                 Console.SetCursorPosition(0, Console.CursorTop)
                                 CurrentDate = e.TimeCreated.Value.Date
                                 Console.WriteLine()
@@ -184,6 +189,7 @@ Module MainModule
                             EventCountPerDay += 1
                             Console.SetCursorPosition(12, Console.CursorTop)
                             Console.Write(EventCountPerDay)
+
                         End If
 
                         'Need to free memory
@@ -254,6 +260,10 @@ NextEventType:
                                         End If
                                     End If
                                 End If
+                                'Check if the same ip has reached the overall threshold limit
+                                If jRow.Count > Cfg.OverallThreshold And Not jRow.Banned Then
+                                    jRow.Banned = MainModule.Jail(ip)
+                                End If
                             End If
                         End If
                         LogEntry = LogReader.ReadLine
@@ -302,7 +312,6 @@ NextEventType:
                         Next
                         Console.WriteLine("Read next event? (Y/N)")
                         If Console.ReadLine.Trim.ToUpper = "N" Then Exit Sub
-
                     End If
                     'Need to free memory
                     e.Dispose()

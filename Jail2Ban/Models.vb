@@ -8,6 +8,7 @@
     Public Property WhiteList As New List(Of String)
     Public Property EventsToCheck As New JailDataSet.EventToCheckDataTable
     Public Property SearchForIISLogPhp404 As Boolean = True
+    Public Property OverallThreshold As Integer = 100
 
 End Class
 
