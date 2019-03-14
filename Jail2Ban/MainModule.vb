@@ -449,11 +449,26 @@ NextEventType:
         Return _fwPolicy
     End Function
 
-    Function GetRule() As INetFwRule2
-        Dim Rules = From x As INetFwRule2 In fwPolicy.Rules
-                    Where x.Name = Cfg.FirewallRuleName
+    Function GetRule(IP As String) As INetFwRule2
 
-        Return Rules.FirstOrDefault
+        Dim RuleName = $"{Cfg.FirewallRuleName} {IP.Split(".")(0) }.{IP.Split(".")(1)}.x.x"
+
+        Dim Rules = From x As INetFwRule2 In fwPolicy.Rules
+                    Where x.Name = RuleName
+
+        Dim RuleType = Type.GetTypeFromProgID("HNetCfg.FWRule")
+        Dim Rule As INetFwRule2 = Rules.FirstOrDefault
+        If Rule Is Nothing Then
+            Rule = Activator.CreateInstance(RuleType)
+            Rule.Name = RuleName
+            Rule.Direction = NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN
+            Rule.Protocol = NET_FW_IP_PROTOCOL_.NET_FW_IP_PROTOCOL_ANY
+            Rule.Action = NET_FW_ACTION_.NET_FW_ACTION_BLOCK
+            Rule.Enabled = True
+            Rule.RemoteAddresses = IP
+            fwPolicy.Rules.Add(Rule)
+        End If
+        Return Rule
     End Function
 
     Function Jail(IP As String) As Boolean
@@ -464,31 +479,18 @@ NextEventType:
         End If
 
         'Act on the rule
-        Dim RuleType = Type.GetTypeFromProgID("HNetCfg.FWRule")
-        Dim Rule As INetFwRule2 = GetRule()
-        If Rule Is Nothing Then
-            Rule = Activator.CreateInstance(RuleType)
-            Rule.Name = Cfg.FirewallRuleName
-            Rule.Direction = NET_FW_RULE_DIRECTION_.NET_FW_RULE_DIR_IN
-            Rule.Protocol = NET_FW_IP_PROTOCOL_.NET_FW_IP_PROTOCOL_ANY
-            Rule.Action = NET_FW_ACTION_.NET_FW_ACTION_BLOCK
-            Rule.Enabled = True
-            Rule.RemoteAddresses = IP
-            fwPolicy.Rules.Add(Rule)
-            Console.WriteLine("Banning IP '" & IP & "'...")
+        Dim Rule As INetFwRule2 = GetRule(IP)
+        Dim list = Rule.RemoteAddresses.Split(",").ToList
+        If Not list.Any(Function(x) x.Split("/")(0) = IP) Then
+            list.Add(IP)
+            Dim a = list.OrderBy(Function(x) x).ToArray
+            'Adding the IP to the ban list
+            Rule.RemoteAddresses = Join(a, ",")
         Else
-            Dim list = Rule.RemoteAddresses.Split(",").ToList
-            If Not list.Any(Function(x) x.Split("/")(0) = IP) Then
-                list.Add(IP)
-                Dim a = list.OrderBy(Function(x) x).ToArray
-                'Adding the IP to the ban list
-                Rule.RemoteAddresses = Join(a, ",")
-            Else
-                'IP is already in the ban list
-            End If
-            Return True
+            'IP is already in the ban list
         End If
-        Return False
+        Return True
+
     End Function
 
 #End Region
