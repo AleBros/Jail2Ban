@@ -7,7 +7,7 @@ Jail2Ban locks IP addresses using Windows Firewall
 ## How it works
 - Search for failed login attempts into the windows event log
 - Retrives the remote endpoint ip address from the log properties
-- Creates a single firewall rule if not existing (wail2ban is different in this approach)
+- Creates multiple firewall rules if not existing grouping banned IPs using the first two block of IPv4 address
 - Adds a locked IP address
 - Shows into the console the "jail" status
 
