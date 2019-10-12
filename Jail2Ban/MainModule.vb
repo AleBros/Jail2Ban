@@ -89,6 +89,8 @@ Module MainModule
         Console.ForegroundColor = ConsoleColor.White
         Console.WriteLine("Populating Whitelist with this machine addresses:")
         Console.ResetColor()
+        Cfg.WhiteList.Add("127.0.0.1")
+        Console.WriteLine(" - 127.0.0.1")
         For Each sl In (From x In Dns.GetHostEntry(Dns.GetHostName).AddressList)
             Cfg.WhiteList.Add(sl.ToString)
             Console.WriteLine($" - {sl.ToString}")
@@ -167,8 +169,8 @@ Module MainModule
                                 If jRow.Last < e.TimeCreated Then
                                     jRow.Count += 1
                                     jRow.Last = e.TimeCreated
-                                    'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                    
-                                    If LogTable.Where(Function(x) x.IP = ip And x.DateTime >= e.TimeCreated.Value.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount And DateDiff(DateInterval.Minute, jRow.First, jRow.Last) < Cfg.CheckMinutes Then
+                                    'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                                                        
+                                    If Not jRow.Banned AndAlso LogTable.Where(Function(x) x.IP = ip And x.DateTime >= jRow.Last.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount Then
                                         jRow.Banned = MainModule.Jail(ip)
                                     End If
                                 End If
@@ -361,7 +363,7 @@ NextEventType:
             Dim ColumnsWidth = From c As DataColumn In JailTable.Columns
                                Select New With {
                                   .ColumnName = c.ColumnName,
-                                  .Width = GetColumnMaxWidth(c.ColumnName)
+                                  .Width = GetColumnMaxWidth(c.ColumnName) + 1
                                   }
 
             'Creating the table header
