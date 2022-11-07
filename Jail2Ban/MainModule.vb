@@ -272,7 +272,11 @@ NextEventType:
                     End While
                 End If
             End If
-            DrawTable(JailTable)
+            Try
+                DrawTable(JailTable)
+            Catch ex As Exception
+                Console.WriteLine($"Error updating html page: {ex.Message}")
+            End Try
 
             Dim j = JsonConvert.SerializeObject(JailTable)
             My.Computer.FileSystem.WriteAllText(Cfg.JailFileName, j, False)
