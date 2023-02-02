@@ -9,6 +9,7 @@
     Public Property EventsToCheck As New JailDataSet.EventToCheckDataTable
     Public Property SearchForIISLogPhp404 As Boolean = True
     Public Property OverallThreshold As Integer = 100
+    Public Property LockLocalAddresses As Boolean = False
 
 End Class
 

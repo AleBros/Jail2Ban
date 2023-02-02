@@ -189,8 +189,10 @@ Module MainModule
                                 EventCountPerDay = 0
                             End If
                             EventCountPerDay += 1
-                            Console.SetCursorPosition(12, Console.CursorTop)
-                            Console.Write(EventCountPerDay)
+                            If EventCountPerDay > 100 AndAlso EventCountPerDay.ToString.EndsWith("00") Then
+                                Console.SetCursorPosition(12, Console.CursorTop)
+                                Console.Write(EventCountPerDay)
+                            End If
 
                         End If
 
@@ -384,7 +386,11 @@ NextEventType:
                     Dim Data = If(r.IsNull(c.ColumnName), "", r.Item(c.ColumnName)).ToString.PadLeft(c.Width)
                     Select Case c.ColumnName
                         Case "IP"
-                            If Cfg.WhiteList.Contains(r.IP) Then Console.ForegroundColor = ConsoleColor.White
+                            If Cfg.WhiteList.Contains(r.IP) Then
+                                Console.ForegroundColor = ConsoleColor.White
+                            ElseIf Not Cfg.LockLocalAddresses AndAlso IsLocal(r.IP) Then
+                                Console.ForegroundColor = ConsoleColor.Yellow
+                            End If
                         Case "Count"
                             If r.Count >= Cfg.CheckCount And Not r.Banned Then Console.ForegroundColor = ConsoleColor.Red
                         Case "First", "Last"
@@ -441,6 +447,12 @@ NextEventType:
         My.Computer.FileSystem.WriteAllText("Jail2ban.html", html.ToString, False)
     End Sub
 
+    Private Function IsLocal(IP As String) As Boolean
+        Return (IP.StartsWith("192.168.") Or
+                (IP.StartsWith("172.") AndAlso (CInt(IP.Substring(4, IP.Substring(4).IndexOf("."))) < 32)) Or
+                IP.StartsWith("10."))
+    End Function
+
 #Region " Firewall management "
 
     Dim _fwPolicy As INetFwPolicy2
@@ -477,6 +489,11 @@ NextEventType:
 
         'Check into WhiteList
         If Cfg.WhiteList.Contains(IP) Or IP = "-" Or Not IsNumeric(IP.Replace(".", "")) Then
+            Return False
+        End If
+
+        'Check for LAN addresses
+        If Not Cfg.LockLocalAddresses AndAlso IsLocal(IP) Then
             Return False
         End If
 
