@@ -122,10 +122,10 @@ Module MainModule
 
         Dim IpAddressRegex = "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
         Dim EventsToCheck = New JailDataSet.EventToCheckDataTable
-        'EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0, Nothing, "Ban")
-        'EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing, "Ban")
-        'EventsToCheck.AddEventToCheckRow("Application", 18456, 2, IpAddressRegex, "Ban")
-        'EventsToCheck.AddEventToCheckRow("Application", 17806, 4, IpAddressRegex, "Ban")
+        EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0, Nothing, "Ban")
+        EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing, "Ban")
+        EventsToCheck.AddEventToCheckRow("Application", 18456, 2, IpAddressRegex, "Ban")
+        EventsToCheck.AddEventToCheckRow("Application", 17806, 4, IpAddressRegex, "Ban")
 
         EventsToCheck.AddEventToCheckRow("Security", 4624, 0, Nothing, "Log")
 
