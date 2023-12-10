@@ -33,10 +33,56 @@ Public Class ConfigurationModel
             "config.json"
         }
 
+    ''' <summary>
+    ''' REST Endpoint for Successful login logging - Sends a serialized SuccessfulLogin via POST to the REST Endpoint
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property SuccessfulLoginsRestEndpoint As String = ""
+    Public Property SuccessfulLoginsToken As String = ""
+
     Public Class WhiteListEntry
         Public Property IPAddress As String
         Public Property Description As String
     End Class
 
+End Class
+
+Public Class SuccessfuLogin
+    ''' <summary>
+    ''' Authentication token to REST EndPoint
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property Token As String
+    ''' <summary>
+    ''' This machine name
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property MachineName As String
+    ''' <summary>
+    ''' Source login IP Address
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property IPAddress As String
+    ''' <summary>
+    ''' Source login username
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property Username As String
+    ''' <summary>
+    ''' Login date and time
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property DateTime As DateTime
+    ''' <summary>
+    ''' Extra details
+    ''' </summary>
+    ''' <returns></returns>
+    Public Property Details As String
+End Class
+
+Public Class SuccessfulLoginEvent
+    Public Property Registry As String
+    Public Property Source As String
+    Public Property EventID As Integer
 End Class
 

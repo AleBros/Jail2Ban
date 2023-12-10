@@ -7,6 +7,10 @@ Imports System.Threading
 Imports System.Diagnostics.Eventing.Reader
 Imports Newtonsoft.Json
 Imports System.IO
+Imports Newtonsoft.Json.Linq
+Imports System.Net.Http
+Imports Newtonsoft
+Imports System.Text
 
 Module MainModule
 
@@ -23,8 +27,6 @@ Module MainModule
 
     Dim FullLog = False
     Dim ConsoleHeight = 50
-
-
 
     Dim BanList As New List(Of String)
 
@@ -117,11 +119,17 @@ Module MainModule
         Console.WriteLine("Application starts in 5 seconds.")
         Threading.Thread.Sleep(5000)
 
+
+        Dim IpAddressRegex = "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
         Dim EventsToCheck = New JailDataSet.EventToCheckDataTable
-        EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0, Nothing)
-        EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing)
-        EventsToCheck.AddEventToCheckRow("Application", 18456, 2, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
-        EventsToCheck.AddEventToCheckRow("Application", 17806, 4, "\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
+        'EventsToCheck.AddEventToCheckRow("Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational", 140, 0, Nothing, "Ban")
+        'EventsToCheck.AddEventToCheckRow("Security", 4625, 19, Nothing, "Ban")
+        'EventsToCheck.AddEventToCheckRow("Application", 18456, 2, IpAddressRegex, "Ban")
+        'EventsToCheck.AddEventToCheckRow("Application", 17806, 4, IpAddressRegex, "Ban")
+
+        EventsToCheck.AddEventToCheckRow("Security", 4624, 0, Nothing, "Log")
+
+        Dim CheckForSuccessfulLogins = Not String.IsNullOrEmpty(Cfg.SuccessfulLoginsRestEndpoint)
 
         'Starts the infinite loop
         While True
@@ -134,9 +142,9 @@ Module MainModule
                 Try
                     'If it is the first time I'll check the entair registry
                     If Not LastQueryTime.HasValue Then
-                        query = New EventLogQuery(etcRow.Log, PathType.LogName)
+                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[EventID={etcRow.EventID}]]")
                     Else
-                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[TimeCreated[@SystemTime >= '{LastQueryTime.Value.ToUniversalTime.ToString("o")}']]]")
+                        query = New EventLogQuery(etcRow.Log, PathType.LogName, $"*[System[TimeCreated[@SystemTime >= '{LastQueryTime.Value.ToUniversalTime:o}'] and EventID={etcRow.EventID} ]]")
                     End If
 
                 Catch ex As Exception
@@ -151,52 +159,56 @@ Module MainModule
 
                 Using reader = New EventLogReader(query)
                     Dim e = reader.ReadEvent()
-                    While Not e Is Nothing
-                        If e.Id = etcRow.EventID Then
-                            Dim ip = e.Properties(etcRow.PropertyIndex).Value
-                            If Not etcRow.IsRegexNull AndAlso etcRow.Regex <> "" Then
-                                ip = GetResult(ip, etcRow.Regex)
-                            End If
-                            If ip <> "" Then
-                                Dim jRow = JailTable.FindByIP(ip)
-                                Dim lRow = LogTable.FindByEventIDLogNameDateTimeIP(e.Id, etcRow.Log, e.TimeCreated, ip)
-                                If jRow Is Nothing Then jRow = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
-                                If lRow Is Nothing Then lRow = LogTable.AddLogRow(ip, e.TimeCreated, etcRow.Log, e.Id)
+                    While e IsNot Nothing
 
-                                If jRow.Last < e.TimeCreated Then
-                                    jRow.Count += 1
-                                    jRow.Last = e.TimeCreated
-                                    'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                                                        
-                                    If Not jRow.Banned AndAlso LogTable.Where(Function(x) x.IP = ip And x.DateTime >= jRow.Last.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount Then
+                        Select Case etcRow.EventTypeCode
+                            Case "Ban"
+                                Dim ip = e.Properties(etcRow.PropertyIndex).Value
+                                If Not etcRow.IsRegexNull AndAlso etcRow.Regex <> "" Then
+                                    ip = GetResult(ip, etcRow.Regex)
+                                End If
+                                If ip <> "" Then
+                                    Dim jRow = JailTable.FindByIP(ip)
+                                    Dim lRow = LogTable.FindByEventIDLogNameDateTimeIP(e.Id, etcRow.Log, e.TimeCreated, ip)
+                                    If jRow Is Nothing Then jRow = JailTable.AddJailRow(ip, 1, e.TimeCreated, e.TimeCreated, False)
+                                    If lRow Is Nothing Then lRow = LogTable.AddLogRow(ip, e.TimeCreated, etcRow.Log, e.Id)
+
+                                    If jRow.Last < e.TimeCreated Then
+                                        jRow.Count += 1
+                                        jRow.Last = e.TimeCreated
+                                        'Check how many fail log are from the same ip in the previous CheckMinutes, if there are at least the CheckCount the IP will be banned                                                                        
+                                        If Not jRow.Banned AndAlso LogTable.Where(Function(x) x.IP = ip And x.DateTime >= jRow.Last.AddMinutes(-Cfg.CheckMinutes)).Count >= Cfg.CheckCount Then
+                                            jRow.Banned = MainModule.Jail(ip)
+                                        End If
+                                    End If
+                                    'Check if the same ip has reached the overall threshold limit
+                                    If jRow.Count > Cfg.OverallThreshold And Not jRow.Banned Then
                                         jRow.Banned = MainModule.Jail(ip)
                                     End If
                                 End If
-                                'Check if the same ip has reached the overall threshold limit
-                                If jRow.Count > Cfg.OverallThreshold And Not jRow.Banned Then
-                                    jRow.Banned = MainModule.Jail(ip)
+
+                                If CurrentDate <> e.TimeCreated.Value.Date Then
+                                    'First line for the current date
+                                    Console.SetCursorPosition(0, Console.CursorTop)
+                                    CurrentDate = e.TimeCreated.Value.Date
+                                    Console.WriteLine()
+                                    Console.Write(CurrentDate.ToShortDateString & " ")
+                                    EventCountPerDay = 0
                                 End If
-                            End If
+                                EventCountPerDay += 1
+                                If EventCountPerDay > 100 AndAlso EventCountPerDay.ToString.EndsWith("00") Then
+                                    Console.SetCursorPosition(12, Console.CursorTop)
+                                    Console.Write(EventCountPerDay)
+                                End If
 
-                            If CurrentDate <> e.TimeCreated.Value.Date Then
-                                'First line for the current date
-                                Console.SetCursorPosition(0, Console.CursorTop)
-                                CurrentDate = e.TimeCreated.Value.Date
-                                Console.WriteLine()
-                                Console.Write(CurrentDate.ToShortDateString & " ")
-                                EventCountPerDay = 0
-                            End If
-                            EventCountPerDay += 1
-                            If EventCountPerDay > 100 AndAlso EventCountPerDay.ToString.EndsWith("00") Then
-                                Console.SetCursorPosition(12, Console.CursorTop)
-                                Console.Write(EventCountPerDay)
-                            End If
+                                'Need to free memory
+                                e.Dispose()
+                                e = Nothing
 
-                        End If
 
-                        'Need to free memory
-                        e.Dispose()
-                        e = Nothing
-
+                            Case "Log"
+                                If CheckForSuccessfulLogins Then CheckEvent(e)
+                        End Select
                         e = reader.ReadEvent()
 
                     End While
@@ -529,6 +541,37 @@ NextEntry:
         Return True
 
     End Function
+
+#End Region
+
+#Region " Successful login log "
+
+    Private Sub CheckEvent(e As EventRecord)
+        Dim log = New SuccessfuLogin
+        Select Case e.Id
+            Case 4624
+                If e.ProviderName = "Microsoft-Windows-Security-Auditing" Then
+                    If {4, 7, 11}.Contains(e.Properties(8).Value) Then
+
+                        log.Token = "bbTestToken"
+                        log.MachineName = e.MachineName
+                        log.Username = $"{e.Properties(6).Value}\{e.Properties(5).Value}"
+                        log.IPAddress = e.Properties(18).Value
+                        log.Token = Cfg.SuccessfulLoginsToken
+                        log.DateTime = e.TimeCreated
+                        log.Details = $"Tipo di accesso: {e.Properties(8).Value}"
+
+                        Console.WriteLine($"{log.DateTime.ToShortDateString} {log.DateTime.ToShortTimeString}: {log.Username} logged in")
+
+                        Dim client = New HttpClient()
+                        Dim content = New StringContent(JsonConvert.SerializeObject(log), Encoding.UTF8, "application/json")
+                        Dim r = client.PostAsync($"{Cfg.SuccessfulLoginsRestEndpoint}", content).Result
+
+                    End If
+                End If
+
+        End Select
+    End Sub
 
 #End Region
 

@@ -81,6 +81,9 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>JailDataSet.xsd</DependentUpon>
     </Compile>
+    <Compile Include="JailDataSet.vb">
+      <DependentUpon>JailDataSet.xsd</DependentUpon>
+    </Compile>
     <Compile Include="MainModule.vb" />
     <Compile Include="Models.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
